@@ -2,9 +2,24 @@
   <q-page class="row q-pt-xl">
     <div class="full-width q-px-xl">
       <div class="q-mb-xl">
-        <q-input v-model="tempData.name" label="姓名" />
-        <q-input v-model="tempData.age" label="年齡" />
-        <q-btn color="primary" class="q-mt-md">新增</q-btn>
+        <q-input
+          v-model="tempData.name"
+          label="姓名"
+          :rules="[(val) => (val && val.length > 0) || '不得空白']"
+        />
+        <q-input
+          v-model="tempData.age"
+          label="年齡"
+          type="number"
+          :rules="[(val) => (val && val > 0) || '不得空白']"
+        />
+        <q-btn
+          color="primary"
+          class="q-mt-md"
+          @click="blueBtnClickOption(btnMode.status)"
+          :disable="!isFormValid"
+          >{{ btnMode.label }}</q-btn
+        >
       </div>
 
       <q-table
@@ -80,18 +95,23 @@
 <script setup lang="ts">
 import axios from 'axios';
 import { QTableProps } from 'quasar';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+
 interface btnType {
   label: string;
   icon: string;
   status: string;
 }
+const apiUrl = 'https://dahua.metcfire.com.tw/api/CRUDTest';
+
 const blockData = ref([
   {
+    id: '1',
     name: 'test',
     age: 25,
   },
 ]);
+
 const tableConfig = ref([
   {
     label: '姓名',
@@ -106,6 +126,7 @@ const tableConfig = ref([
     align: 'left',
   },
 ]);
+
 const tableButtons = ref([
   {
     label: '編輯',
@@ -119,13 +140,83 @@ const tableButtons = ref([
   },
 ]);
 
+const btnMode = ref({
+  label: '新增',
+  status: 'add',
+});
+
+const isFormValid = computed(() => {
+  return tempData.value.name !== '' && tempData.value.age !== '';
+});
+
 const tempData = ref({
   name: '',
   age: '',
 });
+
 function handleClickOption(btn, data) {
   // ...
+  if (btn.status == 'edit') {
+    tempData.value = JSON.parse(JSON.stringify(data));
+    btnMode.value.label = '更新';
+    btnMode.value.status = 'edit';
+  } else if (btn.status == 'delete') {
+    if (confirm('是否確定刪除該筆資料?')) {
+      deleteData(tempData.value.id);
+    }
+  }
 }
+function blueBtnClickOption(btn_mode) {
+  // ...
+  if (btn_mode == 'add') {
+    addData();
+  } else if (btn_mode == 'edit') {
+    updateData();
+  }
+  btnMode.value.label = '新增';
+  btnMode.value.status = 'add';
+  tempData.value = {
+    name: '',
+    age: '',
+  };
+}
+async function getData() {
+  try {
+    const response = await axios.get(`${apiUrl}/a`);
+    blockData.value = response.data;
+  } catch (error) {
+    console.error('getData()Error:', error);
+  }
+}
+async function addData() {
+  try {
+    const response = await axios.post(apiUrl, tempData.value);
+    blockData.value.push(response.data);
+  } catch (error) {
+    console.error('addData()Error:', error);
+  }
+}
+async function updateData() {
+  try {
+    const response = await axios.put(apiUrl, tempData.value);
+    const index = blockData.value.findIndex(
+      (item) => item.id === tempData.value.id
+    );
+    if (index !== -1) blockData.value[index] = response.data;
+  } catch (error) {
+    console.error('updateData()Error:', error);
+  }
+}
+async function deleteData(id: string) {
+  try {
+    await axios.delete(`${apiUrl}/${id}`);
+    blockData.value = blockData.value.filter((item) => item.id !== id);
+  } catch (error) {
+    console.error('deleteData()Error:', error);
+  }
+}
+
+//getData();
 </script>
 
 <style lang="scss" scoped>
